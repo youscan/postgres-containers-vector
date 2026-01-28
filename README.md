@@ -1,53 +1,64 @@
-# PostgreSQL container images extender
+# PostgreSQL container images with vchord-suite
 
-This repository contains the dockerfiles and scripts as well as the github actions
-to extend the postgresql container images from [ghcr.io/cloudnative-pg/postgresql](https://github.com/cloudnative-pg/postgres-containers/).
+This repository contains dockerfiles, scripts, and GitHub Actions to extend PostgreSQL container images from [ghcr.io/cloudnative-pg/postgresql](https://github.com/cloudnative-pg/postgres-containers/) with [vchord-suite](https://docs.vectorchord.ai/) for hybrid vector and full-text search.
+
+## Included Extensions
+
+- **vchord** - scalable vector similarity search (successor to pgvecto.rs)
+- **vchord_bm25** - BM25 full-text search ranking
+- **pg_tokenizer** - text tokenization for multilingual BM25 search
+- **pgvector** - vector data type (dependency for vchord)
 
 ## Building locally
 
-To build an image locally using docker, check out the repository and run the following command:
-
 ```shell
-git clone
+docker build -t postgresql-vchord .
 ```
 
-Then you can build the image using the following command:
+By default the image uses PostgreSQL 17 on Debian Bookworm. You can customize with build arguments:
 
 ```shell
-docker build -t postgresql .
+docker build -t postgresql-vchord \
+  --build-arg POSTGRESQL_VERSION=16-standard-bookworm \
+  --build-arg VCHORD_VERSION=1.0.0 \
+  --build-arg VCHORD_BM25_VERSION=0.3.0 \
+  --build-arg PG_TOKENIZER_VERSION=0.1.1 \
+  .
 ```
 
-By default the image extends version 15.3 of the cloudnative-pg operand image.
-You can change this by providing a different version as build argument:
+Additional APT extensions can be added:
 
 ```shell
-docker build -t postgresql --build-arg POSTGRESQL_VERSION=15.2 .
+docker build -t postgresql-vchord --build-arg EXTENSIONS="vchord-suite cron" .
 ```
 
-By default this image extends the base image with the timescaledb and cron extensions.
-To change this, you can provide a different list of extensions as build argument:
+## CloudNativePG Configuration
 
-```shell
-docker build -t postgresql --build-arg EXTENSIONS="timescaledb cron" .
+When using with CloudNativePG, configure `shared_preload_libraries`:
+
+```yaml
+postgresql:
+  shared_preload_libraries:
+    - vchord
+    - pg_tokenizer
 ```
 
-The supported extensions are found in the official debian apt repositories
-under the package names `postgresql-<pg_major>-<extension>`. Timescaledb is 
-handled separately as it is not available in the official debian apt repositories.
+Then create extensions:
 
-For the Timescaledb version you can also provide a different version as build argument:
-
-```shell
-docker build -t postgresql --build-arg TIMESCALEDB_VERSION=2.11.0 .
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+CREATE EXTENSION IF NOT EXISTS pg_tokenizer CASCADE;
+CREATE EXTENSION IF NOT EXISTS vchord_bm25 CASCADE;
 ```
 
-# Building with GitHub Actions
+## Building with GitHub Actions
 
-This repository contains a GitHub Actions workflow that builds the image and pushes it to the
-`ghcr.io/<repository_owner>/postgresql` repository. You can clone this repository
-to generate your own custom images directly in GitHub. The workflow is triggered
-manually and accepts the same build arguments as the local build.
+The repository includes a GitHub Actions workflow that builds and pushes images to `ghcr.io/<repository_owner>/postgresql`. The workflow is triggered manually and accepts version inputs.
 
-The tags for the images are generated from the postgresql version and the extension list.
-The timescaledb extension is versioned. For example, the image for postgresql 15.3 with
-timescaledb 2.11.0 and cron extension would be tagged as `15.3-cron-timescaledb-2.11.0`.
+Image tags follow the format: `<pg-version>-<extensions>`, for example: `17-standard-bookworm-vchord-suite`
+
+## Requirements
+
+- Base image must be Bookworm-based (Debian 12) for glibc >= 2.35 compatibility
+- vchord-suite supports PostgreSQL 14-18
