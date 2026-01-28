@@ -5,31 +5,24 @@ set -euxo pipefail
 
 # install extensions
 EXTENSIONS="$@"
+ARCH=$(dpkg --print-architecture)
+
 # cycle through extensions list
-for EXTENSION in ${EXTENSIONS}; do    
-    # special case: timescaledb
-    if [ "$EXTENSION" == "timescaledb" ]; then
-        # dependencies
-        apt-get install apt-transport-https lsb-release wget -y
+for EXTENSION in ${EXTENSIONS}; do
+    if [ "$EXTENSION" == "vchord-suite" ]; then
+        apt-get install -y wget postgresql-${PG_MAJOR}-pgvector
 
-        # repository
-        echo "deb https://packagecloud.io/timescale/timescaledb/debian/" \
-            "$(lsb_release -c -s) main" \
-            > /etc/apt/sources.list.d/timescaledb.list
+        wget -q https://github.com/tensorchord/VectorChord/releases/download/${VCHORD_VERSION}/postgresql-${PG_MAJOR}-vchord_${VCHORD_VERSION}-1_${ARCH}.deb
+        apt-get install -y ./postgresql-${PG_MAJOR}-vchord_${VCHORD_VERSION}-1_${ARCH}.deb
 
-        # key
-        wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey \
-            | gpg --dearmor > /etc/apt/trusted.gpg.d/timescaledb.gpg
-        
-        apt-get update
-        apt-get install --yes \
-            timescaledb-tools \
-            timescaledb-toolkit-postgresql-${PG_MAJOR} \
-            timescaledb-2-loader-postgresql-${PG_MAJOR} \
-            timescaledb-2-${TIMESCALEDB_VERSION}-postgresql-${PG_MAJOR}
+        wget -q https://github.com/tensorchord/VectorChord-bm25/releases/download/${VCHORD_BM25_VERSION}/postgresql-${PG_MAJOR}-vchord-bm25_${VCHORD_BM25_VERSION}-1_${ARCH}.deb
+        apt-get install -y ./postgresql-${PG_MAJOR}-vchord-bm25_${VCHORD_BM25_VERSION}-1_${ARCH}.deb
 
-        # cleanup
-        apt-get remove apt-transport-https lsb-release wget --auto-remove -y
+        wget -q https://github.com/tensorchord/pg_tokenizer.rs/releases/download/${PG_TOKENIZER_VERSION}/postgresql-${PG_MAJOR}-pg-tokenizer_${PG_TOKENIZER_VERSION}-1_${ARCH}.deb
+        apt-get install -y ./postgresql-${PG_MAJOR}-pg-tokenizer_${PG_TOKENIZER_VERSION}-1_${ARCH}.deb
+
+        rm -f *.deb
+        apt-get remove wget --auto-remove -y
 
         continue
     fi
