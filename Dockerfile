@@ -17,14 +17,14 @@ ARG PG_TOKENIZER_VERSION
 ENV PG_TOKENIZER_VERSION=${PG_TOKENIZER_VERSION}
 
 COPY ./install_pg_extensions.sh /
-# switch to root user to install extensions
 USER root
 RUN \
+    usermod -u 999 postgres && \
+    groupmod -g 999 postgres && \
+    chown -R postgres:postgres /var/lib/postgresql && \
     export PG_MAJOR=$(echo "${POSTGRESQL_VERSION}" | sed 's/[^0-9].*//' ) && \
     apt-get update && \
     /install_pg_extensions.sh ${EXTENSIONS} && \
-    # cleanup
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /install_pg_extensions.sh
-# switch back to the postgres user
 USER postgres
