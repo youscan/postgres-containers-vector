@@ -8,6 +8,8 @@ This repository contains dockerfiles, scripts, and GitHub Actions to extend Post
 - **vchord_bm25** - BM25 full-text search ranking
 - **pg_tokenizer** - text tokenization for multilingual BM25 search
 - **pgvector** - vector data type (dependency for vchord)
+- **pg_repack** - online table/index reorganization without long exclusive locks
+- **pg_cron** - in-database job scheduler (requires `shared_preload_libraries`)
 
 ## Building locally
 
@@ -41,6 +43,9 @@ postgresql:
   shared_preload_libraries:
     - vchord
     - pg_tokenizer
+    - pg_cron
+  parameters:
+    cron.database_name: <your-app-database>
 ```
 
 Then create extensions:
@@ -50,13 +55,19 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
 CREATE EXTENSION IF NOT EXISTS pg_tokenizer CASCADE;
 CREATE EXTENSION IF NOT EXISTS vchord_bm25 CASCADE;
+CREATE EXTENSION IF NOT EXISTS pg_repack;
+CREATE EXTENSION IF NOT EXISTS pg_cron;
 ```
+
+Notes:
+- `pg_repack` does not require `shared_preload_libraries`. The client binary is installed at `/usr/bin/pg_repack` and can be invoked with `kubectl exec` or from a dedicated Job using this same image.
+- `pg_cron` requires `shared_preload_libraries` and is bound to a single database via `cron.database_name`. Run `CREATE EXTENSION pg_cron;` in that database only.
 
 ## Building with GitHub Actions
 
 The repository includes a GitHub Actions workflow that builds and pushes images to `ghcr.io/<repository_owner>/postgresql`. The workflow is triggered manually and accepts version inputs.
 
-Image tags follow the format: `<pg-version>-<extensions>`, for example: `17-standard-bookworm-vchord-suite`
+Image tags follow the format: `<pg-version>-<extensions>`, for example: `17-standard-bookworm-vchord-suite-repack-cron`
 
 ## Requirements
 

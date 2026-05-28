@@ -10,7 +10,7 @@ on:
       EXTENSIONS:
         description: 'Postgres extensions to install'
         required: true
-        default: 'vchord-suite'
+        default: 'vchord-suite repack cron'
       VCHORD_VERSION:
         description: 'VectorChord version'
         required: true
